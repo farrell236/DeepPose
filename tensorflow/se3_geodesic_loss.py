@@ -31,16 +31,16 @@ from geomstats.special_euclidean_group import SpecialEuclideanGroup
 
 class SE3GeodesicLoss(object):
     """docstring for SE3GeodesicLoss"""
-    def __init__(self, w, op_name='GeodesicDistance'):
+    def __init__(self, weight, op_name='GeodesicDistance'):
         super(SE3GeodesicLoss, self).__init__()
 
-        assert w.shape != 6, 'Weight vector must be of shape 1x6'
+        assert weight.shape != 6, 'Weight vector must be of shape 1x6'
 
         self.op_name = op_name
         self.SE3_GROUP = SpecialEuclideanGroup(3)
-        self.w = w
+        self.weight = weight
         self.SE3_GROUP.left_canonical_metric.inner_product_mat_at_identity = \
-            np.eye(6) * self.w
+            np.eye(6) * self.weight
         self.metric = self.SE3_GROUP.left_canonical_metric
 
     # Python Custom Op Tensorflow Wrapper
@@ -103,23 +103,19 @@ class SE3GeodesicLoss(object):
         :return: dist, grad
         """
         # Geodesic Distance
-        dist = np.squeeze(self.metric.squared_dist(y_pred, y_true))\
-            .astype('float32')
+        dist = self.metric.squared_dist(y_pred, y_true).astype('float32')
 
         # d/dx (Geodesic Distance)
         tangent_vec = self.metric.log(base_point=y_pred, point=y_true)
-        tangent_vec = np.squeeze(tangent_vec).astype('float32')
 
         grad_point = - 2. * tangent_vec
 
         inner_prod_mat = self.metric.inner_product_matrix(y_pred)
-        inner_prod_mat = np.squeeze(inner_prod_mat).astype('float32')
 
-        grad_point = np.repeat(np.expand_dims(grad_point, axis=1), 6, axis=1)
-        grad = np.sum(np.multiply(inner_prod_mat, grad_point), axis=2)
+        grad = np.einsum('ijk,ik->ij', inner_prod_mat, grad_point)
 
-        sqrt_w = np.sqrt(self.w).astype('float32')
-        grad = np.multiply(grad, sqrt_w)
+        sqrt_w = np.sqrt(self.weight)
+        grad = np.multiply(grad, sqrt_w).astype('float32')
 
         return np.sum(dist), grad
 
