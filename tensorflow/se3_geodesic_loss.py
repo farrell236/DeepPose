@@ -30,9 +30,12 @@ from geomstats.special_euclidean_group import SpecialEuclideanGroup
 
 
 class SE3GeodesicLoss(object):
-    """docstring for SE3GeodesicLoss"""
-    def __init__(self, weight, op_name='GeodesicDistance'):
-        super(SE3GeodesicLoss, self).__init__()
+    """
+    Geodesic Loss on the Special Euclidean Group SE(3), of 3D rotations 
+    and translations, computed as the square geodesic distance with respect 
+    to a left-invariant Riemannian metric.
+    """
+    def __init__(self, weight, op_name='SE3GeodesicLoss'):
 
         assert weight.shape != 6, 'Weight vector must be of shape 1x6'
 
@@ -88,7 +91,7 @@ class SE3GeodesicLoss(object):
             """
             dist, grad = self.py_func(self.riemannian_dist_grad,
                                       [y_pred, y_true],
-                                      [tf.float32, tf.float32],
+                                      [tf.float64, tf.float64],
                                       name=name,
                                       grad=self.riemannian_grad_op)
             return dist
@@ -103,21 +106,22 @@ class SE3GeodesicLoss(object):
         :return: dist, grad
         """
         # Geodesic Distance
-        dist = self.metric.squared_dist(y_pred, y_true).astype('float32')
+        sq_geodesic_dist = self.metric.squared_dist(y_pred, y_true)
+        batch_loss = np.sum(sq_geodesic_dist)
 
-        # d/dx (Geodesic Distance)
+        # Computation of Riemannian Gradient
         tangent_vec = self.metric.log(base_point=y_pred, point=y_true)
 
         grad_point = - 2. * tangent_vec
 
-        inner_prod_mat = self.metric.inner_product_matrix(y_pred)
+        inner_prod_mat = self.metric.inner_product_matrix(base_point=y_pred)
 
-        grad = np.einsum('ijk,ik->ij', inner_prod_mat, grad_point)
+        riemannian_grad = np.einsum('ijk,ik->ij', inner_prod_mat, grad_point)
 
-        sqrt_w = np.sqrt(self.weight)
-        grad = np.multiply(grad, sqrt_w).astype('float32')
+        sqrt_weight = np.sqrt(self.weight)
+        riemannian_grad = np.multiply(riemannian_grad, sqrt_weight)
 
-        return np.sum(dist), grad
+        return batch_loss, riemannian_grad
 
     # Geodesic Loss Gradient Function
     def riemannian_grad_op(self, op, grads, grad_glob):
