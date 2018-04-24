@@ -14,7 +14,6 @@ Gradient w.r.t. y_true is a vector of ones.
 
 import numpy as np
 import torch
-
 from torch.autograd import Variable
 from se3_geodesic_loss import SE3GeodesicLoss
 

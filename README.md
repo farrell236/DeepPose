@@ -61,7 +61,7 @@ If you like our work and found it useful for your research, please cite our pape
   title={Geomstats: Computations and Statistics on Manifolds with Geometric Structures.}, 
   url={https://github.com/ninamiolane/geomstats}, 
   journal={GitHub}, 
-  author={Miolane, Nina}, 
+  author={Miolane, Nina and Mathe, Johan and Pennec, Xavier}, 
   year={2018}, 
   month={Feb}
 }

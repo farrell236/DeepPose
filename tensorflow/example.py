@@ -12,9 +12,8 @@ N.B. Gradient tensor (shape = [Nx6]) is only calculated w.r.t. y_pred.
 Gradient w.r.t. y_true is a vector of ones.
 """
 
-import tensorflow as tf
 import numpy as np
-
+import tensorflow as tf
 from se3_geodesic_loss import SE3GeodesicLoss
 
 
