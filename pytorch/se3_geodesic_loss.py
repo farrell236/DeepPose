@@ -22,11 +22,15 @@
 
 import numpy as np
 import torch
-from torch.autograd import Function
+
+from geomstats.invariant_metric import InvariantMetric
 from geomstats.special_euclidean_group import SpecialEuclideanGroup
+from torch.autograd import Function
 
 
-# custom autograd function
+SE3_DIM = 6
+N = 3
+
 class SE3GeodesicLoss(Function):
     """
     Geodesic Loss on the Special Euclidean Group SE(3), of 3D rotations
@@ -35,16 +39,14 @@ class SE3GeodesicLoss(Function):
     """
     def __init__(self, weight):
 
-        SE3_DIM = 6
-        N = 3
-
         assert weight.shape != SE3_DIM, 'Weight vector must be of shape [6]'
 
-        self.SE3_GROUP = SpecialEuclideanGroup(N)
         self.weight = weight
-        self.SE3_GROUP.left_canonical_metric.inner_product_mat_at_identity = \
-            np.eye(SE3_DIM) * self.weight
-        self.metric = self.SE3_GROUP.left_canonical_metric
+        self.SE3_GROUP = SpecialEuclideanGroup(N)
+        self.metric = InvariantMetric( 
+            group=self.SE3_GROUP, 
+            inner_product_mat_at_identity=np.eye(SE3_DIM) * self.weight, 
+            left_or_right='left')
 
     def forward(self, inputs, targets):
         """

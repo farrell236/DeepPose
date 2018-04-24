@@ -14,6 +14,7 @@ Gradient w.r.t. y_true is a vector of ones.
 
 import numpy as np
 import tensorflow as tf
+
 from se3_geodesic_loss import SE3GeodesicLoss
 
 

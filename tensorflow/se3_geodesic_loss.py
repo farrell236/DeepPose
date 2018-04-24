@@ -22,9 +22,14 @@
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.framework import ops
-from geomstats.special_euclidean_group import SpecialEuclideanGroup
 
+from geomstats.invariant_metric import InvariantMetric
+from geomstats.special_euclidean_group import SpecialEuclideanGroup
+from tensorflow.python.framework import ops
+
+
+SE3_DIM = 6
+N = 3
 
 class SE3GeodesicLoss(object):
     """
@@ -34,17 +39,15 @@ class SE3GeodesicLoss(object):
     """
     def __init__(self, weight, op_name='SE3GeodesicLoss'):
 
-        SE3_DIM = 6
-        N = 3
-
         assert weight.shape != SE3_DIM, 'Weight vector must be of shape [6]'
 
         self.op_name = op_name
-        self.SE3_GROUP = SpecialEuclideanGroup(N)
         self.weight = weight
-        self.SE3_GROUP.left_canonical_metric.inner_product_mat_at_identity = \
-            np.eye(SE3_DIM) * self.weight
-        self.metric = self.SE3_GROUP.left_canonical_metric
+        self.SE3_GROUP = SpecialEuclideanGroup(N)
+        self.metric = InvariantMetric( 
+            group=self.SE3_GROUP, 
+            inner_product_mat_at_identity=np.eye(SE3_DIM) * self.weight, 
+            left_or_right='left')
 
     # Python Custom Op Tensorflow Wrapper
     def py_func(self, func, inp, Tout, stateful=True, name=None, grad=None):
