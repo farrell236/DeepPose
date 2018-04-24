@@ -24,8 +24,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops
 
-# import sys
-# sys.path.append('/vol/medic01/users/bh1511/_build/geomstats-master/')
 from geomstats.special_euclidean_group import SpecialEuclideanGroup
 
 
