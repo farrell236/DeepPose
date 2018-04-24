@@ -24,18 +24,25 @@ import torch
 from torch.autograd import Function
 import numpy as np
 
-# import sys
-# sys.path.append('/vol/medic01/users/bh1511/_build/geomstats-master/')
 from geomstats.special_euclidean_group import SpecialEuclideanGroup
 
 
 # custom autograd function
 class SE3GeodesicLoss(Function):
-    def __init__(self, w):
-        super(SE3GeodesicLoss, self).__init__()
+    """
+    Geodesic Loss on the Special Euclidean Group SE(3), of 3D rotations
+    and translations, computed as the square geodesic distance with respect
+    to a left-invariant Riemannian metric.
+    """
+    def __init__(self, weight):
+
+        assert weight.shape != 6, 'Weight vector must be of shape 1x6'
+
         self.SE3_GROUP = SpecialEuclideanGroup(3)
+        self.weight = weight
+        self.SE3_GROUP.left_canonical_metric.inner_product_mat_at_identity = \
+            np.eye(6) * self.weight
         self.metric = self.SE3_GROUP.left_canonical_metric
-        self.w = w
 
     def forward(self, inputs, targets):
         """
@@ -48,9 +55,10 @@ class SE3GeodesicLoss(Function):
         self.y_pred = inputs.numpy()
         self.y_true = targets.numpy()
 
-        dist = np.squeeze(self.metric.squared_dist(self.y_pred, self.y_true))
+        sq_geodesic_dist = self.metric.squared_dist(self.y_pred, self.y_true)
+        batch_loss = np.sum(sq_geodesic_dist)
 
-        return torch.FloatTensor([np.mean(dist)])
+        return torch.FloatTensor([batch_loss])
 
     def backward(self, grad_output):
         """
@@ -63,17 +71,15 @@ class SE3GeodesicLoss(Function):
         tangent_vec = self.metric.log(
             base_point=self.y_pred,
             point=self.y_true)
-        tangent_vec = np.squeeze(tangent_vec).astype('float32')
 
         grad_point = - 2. * tangent_vec
 
-        inner_prod_mat = self.metric.inner_product_matrix(self.y_pred)
-        inner_prod_mat = np.squeeze(inner_prod_mat).astype('float32')
+        inner_prod_mat = self.metric.inner_product_matrix(
+            base_point=self.y_pred)
 
-        grad_point = np.repeat(np.expand_dims(grad_point, axis=1), 6, axis=1)
-        grad = np.sum(np.multiply(inner_prod_mat, grad_point), axis=2)
+        riemannian_grad = np.einsum('ijk,ik->ij', inner_prod_mat, grad_point)
 
-        sqrt_w = np.sqrt(self.w).astype('float32')
-        grad = np.multiply(grad, sqrt_w)
+        sqrt_weight = np.sqrt(self.weight)
+        riemannian_grad = np.multiply(riemannian_grad, sqrt_weight)
 
-        return grad_output * torch.FloatTensor(grad), None
+        return grad_output * torch.FloatTensor(riemannian_grad), None
